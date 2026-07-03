@@ -1,0 +1,193 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Diego Obras y Reformas — Design System
+ * Estética: arquitectura editorial, oficina técnica moderna, obra premium.
+ * Paleta: piedra, arena, negro suave, verde oliva, terracota.
+ * Tipografía: Fraunces (editorial) + Inter (técnica/sans).
+ */
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 10px;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Brand tokens */
+  --color-bone: var(--bone);
+  --color-sand: var(--sand);
+  --color-stone: var(--stone);
+  --color-ink: var(--ink);
+  --color-olive: var(--olive);
+  --color-terracotta: var(--terracotta);
+  --color-hairline: var(--hairline);
+}
+
+:root {
+  --radius: 4px;
+
+  /* Brand */
+  --bone: #F4F0E8;
+  --sand: #D8C3A5;
+  --stone: #8A8178;
+  --ink: #1E1E1C;
+  --olive: #3F4A36;
+  --terracotta: #B66A4B;
+  --hairline: rgba(30, 30, 28, 0.14);
+
+  /* Semantic */
+  --background: #F4F0E8;
+  --foreground: #1E1E1C;
+  --card: #FBF8F2;
+  --card-foreground: #1E1E1C;
+  --popover: #FBF8F2;
+  --popover-foreground: #1E1E1C;
+  --primary: #1E1E1C;
+  --primary-foreground: #F4F0E8;
+  --secondary: #EDE6D7;
+  --secondary-foreground: #1E1E1C;
+  --muted: #EDE6D7;
+  --muted-foreground: #6B6459;
+  --accent: #B66A4B;
+  --accent-foreground: #F4F0E8;
+  --destructive: #8A2A17;
+  --destructive-foreground: #F4F0E8;
+  --border: rgba(30, 30, 28, 0.14);
+  --input: rgba(30, 30, 28, 0.22);
+  --ring: #3F4A36;
+}
+
+.dark {
+  --background: #1E1E1C;
+  --foreground: #F4F0E8;
+  --card: #26251F;
+  --card-foreground: #F4F0E8;
+  --popover: #26251F;
+  --popover-foreground: #F4F0E8;
+  --primary: #F4F0E8;
+  --primary-foreground: #1E1E1C;
+  --secondary: #2C2B25;
+  --secondary-foreground: #F4F0E8;
+  --muted: #2C2B25;
+  --muted-foreground: #A8A192;
+  --accent: #B66A4B;
+  --accent-foreground: #F4F0E8;
+  --destructive: #B0432C;
+  --destructive-foreground: #F4F0E8;
+  --border: rgba(244, 240, 232, 0.14);
+  --input: rgba(244, 240, 232, 0.22);
+  --ring: #D8C3A5;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Compensa el header sticky al saltar por anclas */
+    scroll-padding-top: 72px;
+    /* Evita ajustes agresivos de tipografía en iOS al rotar */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Previene overflow horizontal por composiciones absolutas */
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-bone);
+  }
+
+  /* Focus visible unificado y accesible */
+  :where(a, button, [role="button"], input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--color-olive);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* Respeta prefers-reduced-motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+
+/* Utilities */
+
+@utility font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 30, "WONK" 0;
+  letter-spacing: -0.02em;
+}
+
+@utility blueprint-grid {
+  background-image:
+    linear-gradient(to right, rgba(30, 30, 28, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 30, 28, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+@utility blueprint-grid-fine {
+  background-image:
+    linear-gradient(to right, rgba(30, 30, 28, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 30, 28, 0.05) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+@utility hairline {
+  border-color: var(--color-hairline);
+}
+
+@utility tick-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
