@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { CONSTRUCTIONOS_CONFIG } from "@/lib/constructionos";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,6 +26,8 @@ export const Route = createFileRoute("/")({
 
 // Fallback defensivo por si la constante de integración quedase vacía.
 const INTAKE_URL = CONSTRUCTIONOS_CONFIG.intakeUrl;
+const WHATSAPP_URL = buildWhatsAppUrl();
+const WHATSAPP_ARIA_LABEL = "Hablar por WhatsApp sobre una obra o reforma";
 
 /* -------------------------------------------------------------------------- */
 /*  Primitives                                                                */
@@ -119,6 +122,33 @@ function GhostLink({
   );
 }
 
+function WhatsAppCTA({
+  className = "",
+  tone = "light",
+}: {
+  className?: string;
+  tone?: "light" | "dark";
+}) {
+  if (!WHATSAPP_URL) return null;
+
+  const toneClasses =
+    tone === "dark"
+      ? "border-bone/25 text-bone hover:border-bone hover:bg-bone/10"
+      : "border-ink/20 text-ink hover:border-ink hover:bg-ink/5";
+
+  return (
+    <a
+      href={WHATSAPP_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={WHATSAPP_ARIA_LABEL}
+      className={`inline-flex min-h-11 items-center justify-center border px-5 py-3 text-sm font-medium tracking-wide transition ${toneClasses} ${className}`}
+    >
+      Hablar por WhatsApp
+    </a>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Nav                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -203,6 +233,7 @@ function Nav() {
             >
               Solicitar presupuesto
             </a>
+            <WhatsAppCTA className="hidden px-4 py-2.5 text-xs md:inline-flex" />
             <button
               type="button"
               aria-label={open ? "Cerrar menú" : "Abrir menú"}
@@ -277,6 +308,24 @@ function Nav() {
                 →
               </span>
             </a>
+            {WHATSAPP_URL ? (
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={WHATSAPP_ARIA_LABEL}
+                onClick={() => setOpen(false)}
+                className="flex min-h-12 items-center justify-between border border-bone/20 px-6 py-4 text-bone transition-colors duration-200 hover:bg-bone/10"
+              >
+                <span className="text-sm font-medium tracking-wide">Hablar por WhatsApp</span>
+                <span
+                  aria-hidden
+                  className="transition-transform duration-300 group-hover:translate-x-1"
+                >
+                  →
+                </span>
+              </a>
+            ) : null}
             <p className="tick-label text-bone/50">Madrid · Ávila · Toledo</p>
           </div>
         </div>
@@ -349,6 +398,7 @@ function Hero() {
 
           <div className="mt-8 flex flex-wrap items-center gap-4 sm:mt-10 sm:gap-6">
             <PrimaryCTA size="lg">Solicitar presupuesto</PrimaryCTA>
+            <WhatsAppCTA />
             <GhostLink href="#proceso">Ver proceso</GhostLink>
           </div>
 
@@ -974,6 +1024,14 @@ function FinalCTA() {
               <PrimaryCTA size="lg" tone="light">
                 Solicitar presupuesto
               </PrimaryCTA>
+              <div className="space-y-2">
+                <WhatsAppCTA tone="dark" />
+                {WHATSAPP_URL ? (
+                  <p className="max-w-xs text-xs leading-relaxed text-bone/55">
+                    Para una primera conversación rápida sobre la obra.
+                  </p>
+                ) : null}
+              </div>
               <GhostLink href="#proceso" tone="dark">
                 Revisar proceso
               </GhostLink>
