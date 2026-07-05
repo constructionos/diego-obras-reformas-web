@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { CONSTRUCTIONOS_CONFIG } from "@/lib/constructionos";
+import {
+  BUDGET_OPTIONS,
+  CONSTRUCTIONOS_CONFIG,
+  SERVICE_OPTIONS,
+  TIMELINE_OPTIONS,
+  submitConstructionOSLead,
+  type LeadFormData,
+} from "@/lib/constructionos";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/")({
@@ -56,11 +63,13 @@ function PrimaryCTA({
   size = "md",
   tone = "dark",
   ariaLabel,
+  href = "#solicitud",
 }: {
   children: string;
   size?: "md" | "lg";
   tone?: "dark" | "light";
   ariaLabel?: string;
+  href?: string;
 }) {
   const base =
     "group inline-flex items-center justify-center gap-3 min-h-11 transition-all duration-300 focus-visible:outline-none";
@@ -75,7 +84,7 @@ function PrimaryCTA({
   } as const;
   return (
     <a
-      href={INTAKE_URL}
+      href={href}
       aria-label={ariaLabel ?? children}
       className={`${base} ${sizes[size]} ${tones[tone]}`}
     >
@@ -228,7 +237,7 @@ function Nav() {
               ))}
             </nav>
             <a
-              href={INTAKE_URL}
+              href="#solicitud"
               className="hidden bg-ink px-4 py-2.5 text-xs font-medium tracking-wide text-bone transition-colors duration-200 hover:bg-olive md:inline-block"
             >
               Solicitar presupuesto
@@ -296,7 +305,7 @@ function Nav() {
 
           <div className="mt-10 space-y-4">
             <a
-              href={INTAKE_URL}
+              href="#solicitud"
               onClick={() => setOpen(false)}
               className="group flex min-h-12 items-center justify-between bg-bone px-6 py-4 text-ink transition-colors duration-200 hover:bg-sand"
             >
@@ -643,7 +652,7 @@ function ServiceCard({ service }: { service: (typeof SERVICES)[number] }) {
   const featured = service.featured;
   return (
     <a
-      href={INTAKE_URL}
+      href="#solicitud"
       className={`group relative flex flex-col justify-between overflow-hidden border p-7 transition-all duration-500 lg:p-9 ${
         featured
           ? "md:col-span-6 lg:col-span-3 lg:row-span-2 border-ink bg-ink text-bone hover:bg-[#242320]"
@@ -991,6 +1000,279 @@ function Zones() {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Lead form                                                                 */
+/* -------------------------------------------------------------------------- */
+
+type LeadFormStatus = "idle" | "submitting" | "success" | "error" | "fallback";
+
+const INITIAL_LEAD_FORM: LeadFormData = {
+  contactName: "",
+  phone: "",
+  email: "",
+  serviceType: "",
+  city: "",
+  province: "",
+  budgetRange: "unknown",
+  desiredTimeline: "unknown",
+  projectStatus: "quiero_visita",
+  description: "",
+  honeypot: "",
+};
+
+function LeadSubmitForm() {
+  const [form, setForm] = useState<LeadFormData>(INITIAL_LEAD_FORM);
+  const [errors, setErrors] = useState<Partial<Record<keyof LeadFormData | "form", string>>>({});
+  const [status, setStatus] = useState<LeadFormStatus>("idle");
+
+  const updateField = (field: keyof LeadFormData, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined, form: undefined }));
+    if (status !== "idle") setStatus("idle");
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setStatus("submitting");
+    setErrors({});
+
+    const result = await submitConstructionOSLead(form);
+
+    if (result.status === "sent") {
+      setStatus("success");
+      setForm(INITIAL_LEAD_FORM);
+      return;
+    }
+
+    if (result.status === "prepared") {
+      setStatus("fallback");
+      return;
+    }
+
+    setErrors(result.errors);
+    setStatus("error");
+  };
+
+  const isSubmitting = status === "submitting";
+  const showFallback = status === "error" || status === "fallback";
+
+  return (
+    <form
+      id="solicitud"
+      onSubmit={handleSubmit}
+      className="border border-bone/15 bg-bone p-6 text-ink shadow-[12px_12px_0_0_rgba(244,240,232,0.08)] sm:p-8"
+    >
+      <div className="flex items-center justify-between border-b border-ink/15 pb-4">
+        <span className="tick-label">Solicitud directa</span>
+        <span className="tick-label text-stone">ConstructionOS</span>
+      </div>
+
+      <h3 className="font-display mt-6 text-3xl leading-tight text-ink">
+        Cuéntanos lo básico de la obra.
+      </h3>
+      <p className="mt-3 text-sm leading-relaxed text-ink/70">
+        Enviaremos la solicitud a ConstructionOS para ordenar el seguimiento. Si la conexión no está
+        disponible, podrás continuar con el formulario guiado.
+      </p>
+
+      <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <FormField error={errors.contactName} id="contactName" label="Nombre" required>
+          <input
+            id="contactName"
+            name="contactName"
+            type="text"
+            autoComplete="name"
+            value={form.contactName}
+            onChange={(event) => updateField("contactName", event.target.value)}
+            className="mt-2 min-h-11 w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-ink"
+          />
+        </FormField>
+
+        <FormField error={errors.phone} id="phone" label="Teléfono">
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            value={form.phone}
+            onChange={(event) => updateField("phone", event.target.value)}
+            className="mt-2 min-h-11 w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-ink"
+          />
+        </FormField>
+
+        <FormField error={errors.email} id="email" label="Email opcional">
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={(event) => updateField("email", event.target.value)}
+            className="mt-2 min-h-11 w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-ink"
+          />
+        </FormField>
+
+        <FormField error={errors.city} id="city" label="Zona / ciudad" required>
+          <input
+            id="city"
+            name="city"
+            type="text"
+            autoComplete="address-level2"
+            value={form.city}
+            onChange={(event) => updateField("city", event.target.value)}
+            className="mt-2 min-h-11 w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-ink"
+          />
+        </FormField>
+
+        <FormField error={errors.serviceType} id="serviceType" label="Tipo de obra" required>
+          <select
+            id="serviceType"
+            name="serviceType"
+            value={form.serviceType}
+            onChange={(event) => updateField("serviceType", event.target.value)}
+            className="mt-2 min-h-11 w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-ink"
+          >
+            <option value="">Selecciona una opción</option>
+            {SERVICE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        <FormField id="budgetRange" label="Rango de presupuesto">
+          <select
+            id="budgetRange"
+            name="budgetRange"
+            value={form.budgetRange}
+            onChange={(event) => updateField("budgetRange", event.target.value)}
+            className="mt-2 min-h-11 w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-ink"
+          >
+            {BUDGET_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        <FormField id="desiredTimeline" label="Cuándo quiere empezar">
+          <select
+            id="desiredTimeline"
+            name="desiredTimeline"
+            value={form.desiredTimeline}
+            onChange={(event) => updateField("desiredTimeline", event.target.value)}
+            className="mt-2 min-h-11 w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-ink"
+          >
+            {TIMELINE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        <div className="hidden" aria-hidden="true">
+          <label htmlFor="company">Empresa</label>
+          <input
+            id="company"
+            name="company"
+            tabIndex={-1}
+            autoComplete="off"
+            value={form.honeypot}
+            onChange={(event) => updateField("honeypot", event.target.value)}
+          />
+        </div>
+
+        <FormField
+          error={errors.description}
+          id="description"
+          label="Descripción breve"
+          required
+          className="sm:col-span-2"
+        >
+          <textarea
+            id="description"
+            name="description"
+            rows={5}
+            value={form.description}
+            onChange={(event) => updateField("description", event.target.value)}
+            className="mt-2 w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-ink"
+            placeholder="Cuéntanos qué quieres reformar, zona aproximada y cualquier detalle útil."
+          />
+        </FormField>
+      </div>
+
+      <p className="mt-4 text-xs leading-relaxed text-ink/55">
+        Indica al menos teléfono o email para poder contactar contigo.
+      </p>
+
+      <div aria-live="polite" className="mt-5 min-h-6 text-sm">
+        {status === "success" ? (
+          <p className="text-olive">
+            Solicitud recibida. Te contactarán para revisar si encaja y valorar próximos pasos.
+          </p>
+        ) : null}
+        {status === "fallback" ? (
+          <p className="text-ink/70">
+            La solicitud está preparada. Puedes continuar desde el formulario guiado.
+          </p>
+        ) : null}
+        {status === "error" && errors.form ? (
+          <p className="text-terracotta">{errors.form}</p>
+        ) : null}
+      </div>
+
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="inline-flex min-h-11 items-center justify-center bg-ink px-6 py-3 text-sm font-medium tracking-wide text-bone transition hover:bg-olive disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? "Enviando..." : "Enviar solicitud"}
+        </button>
+
+        {showFallback ? (
+          <a
+            href={INTAKE_URL}
+            className="inline-flex min-h-11 items-center justify-center border border-ink/20 px-5 py-3 text-sm font-medium tracking-wide text-ink transition hover:border-ink hover:bg-ink/5"
+          >
+            Continuar con solicitud guiada
+          </a>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
+function FormField({
+  children,
+  className = "",
+  error,
+  id,
+  label,
+  required = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  error?: string;
+  id: string;
+  label: string;
+  required?: boolean;
+}) {
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="text-xs font-medium uppercase tracking-[0.16em] text-stone">
+        {label}
+        {required ? <span className="text-terracotta"> *</span> : null}
+      </label>
+      {children}
+      {error ? <p className="mt-2 text-xs leading-relaxed text-terracotta">{error}</p> : null}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Final CTA                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -1043,8 +1325,9 @@ function FinalCTA() {
             </p>
           </div>
 
-          {/* Right — technical card */}
-          <div className="lg:col-span-5">
+          {/* Right — direct form + guided fallback */}
+          <div className="space-y-6 lg:col-span-5">
+            <LeadSubmitForm />
             <IntakePreviewCard />
           </div>
         </div>
@@ -1091,7 +1374,7 @@ function IntakePreviewCard() {
 
       <div className="mt-8 flex items-center gap-3 border-t border-bone/15 pt-5">
         <span className="h-2 w-2 rounded-full bg-terracotta" />
-        <span className="tick-label text-bone/60">se envía al abrir la solicitud</span>
+        <span className="tick-label text-bone/60">fallback disponible</span>
       </div>
 
       <a
@@ -1147,8 +1430,13 @@ function Footer() {
                 </li>
               ))}
               <li>
-                <a href={INTAKE_URL} className="text-bone/85 hover:text-sand">
+                <a href="#solicitud" className="text-bone/85 hover:text-sand">
                   Solicitar presupuesto
+                </a>
+              </li>
+              <li>
+                <a href={INTAKE_URL} className="text-bone/85 hover:text-sand">
+                  Solicitud guiada
                 </a>
               </li>
             </ul>
