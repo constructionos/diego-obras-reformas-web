@@ -1,17 +1,9 @@
 /**
  * ConstructionOS integration adapter.
  *
- * Landing pública de Diego Obras y Reformas.
- * Prepara el payload y el submit para el SaaS privado ConstructionOS.
- *
- * Estado actual:
- *  - No hay endpoint público disponible: `futureApiEndpoint` está vacío.
- *  - `submitConstructionOSLead` valida, construye el payload y devuelve
- *    un resultado "prepared" para que la UI redirija al intake oficial.
- *
- * Estado futuro:
- *  - Rellenar `futureApiEndpoint`, cambiar `integrationMode` a "api"
- *    y esta función hará el POST real. La UI no cambia.
+ * Prepares Diego Obras y Reformas leads for the ConstructionOS SaaS.
+ * When the public API URL is configured, the landing submits directly.
+ * When it is empty, the UI keeps the guided intake URL as fallback.
  */
 
 const DEFAULT_INTAKE_URL =
@@ -24,7 +16,7 @@ export const CONSTRUCTIONOS_CONFIG = {
   companySlug: "diego-obras-reformas",
   intakeUrl: envIntakeUrl || DEFAULT_INTAKE_URL,
   futureApiEndpoint: envApiUrl || "",
-  integrationMode: "redirect" as "redirect" | "api",
+  integrationMode: envApiUrl ? "api" : "redirect",
 } as const;
 
 export type ServiceType =
@@ -58,6 +50,7 @@ export interface LeadFormData {
   desiredTimeline: DesiredTimeline;
   projectStatus: ProjectStatus;
   description: string;
+  honeypot: string;
 }
 
 export interface ConstructionOSLeadPayload {
@@ -78,12 +71,16 @@ export interface ConstructionOSLeadPayload {
     landingVersion: string;
     submittedFrom: string;
   };
+  honeypot: string;
 }
 
 export type SubmitResult =
   | { status: "prepared"; payload: ConstructionOSLeadPayload; intakeUrl: string }
-  | { status: "sent"; payload: ConstructionOSLeadPayload }
+  | { status: "sent"; payload: ConstructionOSLeadPayload; leadId: string; message: string }
   | { status: "error"; errors: Partial<Record<keyof LeadFormData | "form", string>> };
+
+const GENERIC_API_ERROR =
+  "No hemos podido enviar la solicitud automaticamente. Puedes continuar desde el formulario guiado o escribir por WhatsApp.";
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
   reforma_integral: "Reforma integral",
@@ -103,6 +100,10 @@ export function validateLeadForm(
 
   if (!data.contactName.trim() || data.contactName.trim().length < 2) {
     errors.contactName = "Necesitamos un nombre para dirigirnos a ti.";
+  }
+
+  if (data.honeypot.trim()) {
+    errors.form = "No hemos podido enviar la solicitud automaticamente.";
   }
 
   const hasPhone = data.phone.trim().length >= 6;
@@ -149,16 +150,15 @@ export function buildConstructionOSPayload(data: LeadFormData): ConstructionOSLe
     description: data.description.trim(),
     metadata: {
       landingVersion: "v1",
-      submittedFrom: "diego-obras-reformas-landing",
+      submittedFrom: "diego-obras-reformas-web",
     },
+    honeypot: data.honeypot.trim(),
   };
 }
 
 /**
- * Envía (o prepara) un lead para ConstructionOS.
- * Hoy no hace fetch real: devuelve un estado "prepared" y la UI redirige
- * al formulario oficial del SaaS. Cuando exista endpoint público bastará
- * con implementar el fetch aquí sin tocar la UI.
+ * Sends a lead to ConstructionOS when the public API URL is configured.
+ * If the URL is empty, it returns "prepared" so the UI can use the guided intake.
  */
 export async function submitConstructionOSLead(data: LeadFormData): Promise<SubmitResult> {
   const errors = validateLeadForm(data);
@@ -168,10 +168,47 @@ export async function submitConstructionOSLead(data: LeadFormData): Promise<Subm
 
   const payload = buildConstructionOSPayload(data);
 
-  if (CONSTRUCTIONOS_CONFIG.integrationMode === "api" && CONSTRUCTIONOS_CONFIG.futureApiEndpoint) {
-    // Reservado para la integración futura. No implementado ahora
-    // para no simular éxito de un envío que no ocurre.
-    return { status: "prepared", payload, intakeUrl: CONSTRUCTIONOS_CONFIG.intakeUrl };
+  if (CONSTRUCTIONOS_CONFIG.futureApiEndpoint) {
+    try {
+      const response = await fetch(CONSTRUCTIONOS_CONFIG.futureApiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "omit",
+        body: JSON.stringify(payload),
+      });
+
+      const result = (await response.json().catch(() => null)) as {
+        ok?: boolean;
+        leadId?: string;
+        message?: string;
+        error?: string;
+      } | null;
+
+      if (response.status === 201 && result?.ok && result.leadId) {
+        return {
+          status: "sent",
+          payload,
+          leadId: result.leadId,
+          message: result.message || "Solicitud recibida correctamente.",
+        };
+      }
+
+      return {
+        status: "error",
+        errors: {
+          form: GENERIC_API_ERROR,
+        },
+      };
+    } catch {
+      return {
+        status: "error",
+        errors: {
+          form: GENERIC_API_ERROR,
+        },
+      };
+    }
   }
 
   return {
